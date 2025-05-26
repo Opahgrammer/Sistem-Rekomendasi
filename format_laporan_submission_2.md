@@ -142,6 +142,62 @@ Tahapan persiapan data dilakukan untuk memastikan data siap digunakan untuk pemo
 
 ## Modeling
 Dua model sistem rekomendasi dikembangkan:
+**1. Content-Based Filtering**
+Merekomen­dasikan buku berdasarkan kemiripan konten.
+
+**Proses Pembuatan Model:**
+
+1. TF-IDF Vectorization: Fitur features (judul, penulis, penerbit, tahun) dari content_df diubah menjadi matriks numerik (maks 10.000 fitur, stop words Inggris).
+
+2. Nearest Neighbors Model: Menggunakan NearestNeighbors (n_neighbors=11, metric='cosine', algorithm='brute') untuk mencari 10 buku termirip berdasarkan matriks TF-IDF.
+
+3. Pemetaan Judul ke Indeks: Dibuat pandas.Series untuk memetakan judul ke indeks.
+
+Fungsi Rekomendasi (recommend_books_nn):
+Menerima judul buku, mencari top_n (default 10) buku termirip menggunakan model NearestNeighbors, lalu mengambil detail lengkap buku rekomendasi dari merged.
+
+Hasil Rekomendasi (Top-N):
+Untuk buku 'Death on the Nile':
+
+| No | Title                  | Author          | Publisher                                | Year |
+|----|------------------------|-----------------|------------------------------------------|------|
+| 1  | At Bertram's Hotel     | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 2  | Death Comes As the End | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 3  | Passenger to Frankfurt | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 4  | Sparkling Cyanide      | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 5  | Sleeping Murder        | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 6  | Mrs. McGinty's Dead    | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 7  | Murder Is Easy         | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 8  | The Clocks             | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1991 |
+| 9  | Hickory Dickory Dock   | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+| 10 | Third Girl             | Agatha Christie | Harper Mass Market Paperbacks (Mm)       | 1992 |
+
+Model berhasil merekomendasikan buku lain karya Agatha Christie.
+
+**Kelebihan:** Tidak butuh data pengguna lain, bisa rekomendasikan item baru, transparan.
+**Kekurangan:** Terbatas fitur item, bisa overspecialization, butuh domain knowledge, cold-start untuk pengguna baru.
+
+2. Collaborative Filtering
+Merekomen­dasikan buku berdasarkan kemiripan preferensi antar pengguna.
+
+**Proses Pembuatan Model:**
+
+1. Parameter: num_users (pengguna unik terenkode), num_books (buku unik terenkode), embedding_size = 50.
+
+2. Arsitektur Model (Neural Network - Keras):
+
+- Input: user dan book (ID terenkode).
+
+- Embedding Layers: Untuk user dan book (dimensi 50, inisialisasi he_normal, regularisasi L2).
+
+- Flatten & Concatenate: Menggabungkan vektor embedding.
+
+- Dense Layers: Dua lapisan (128, 64 unit, aktivasi ReLU).
+
+- Output Layer: Satu unit (aktivasi linear) untuk prediksi peringkat.
+
+- Kompilasi: Optimizer Adam (lr 0.001), loss mean_squared_# Ringkasan arsitektur model (dari notebook)
+  
 
 **Rubrik/Kriteria Tambahan (Opsional)**: 
 - Menyajikan dua solusi rekomendasi dengan algoritma yang berbeda.
