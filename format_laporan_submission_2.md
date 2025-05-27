@@ -126,6 +126,7 @@ Tahapan persiapan data dilakukan untuk memastikan data siap digunakan untuk pemo
 **6. Pemisahan Dataset:**
 - **content_df** (**ISBN**, **Title**, features unik) untuk Content-Based. Alasan: Data konten bersih.
 - collab_df (User_id, ISBN, Rating dari filtered_rating) untuk Collaborative. Alasan: Data interaksi bersih.
+  
 **7. Encoding Fitur untuk Collaborative:**
 
 - **ISBN** dipastikan string; ISBN di **collab_df** divalidasi terhadap **content_df**. Alasan: Untuk memastikan konsistensi dan menghindari **ISBN** yang tidak memiliki pasangan data buku.
@@ -142,6 +143,7 @@ Tahapan persiapan data dilakukan untuk memastikan data siap digunakan untuk pemo
 
 ## Modeling
 Dua model sistem rekomendasi dikembangkan:
+
 **1. Content-Based Filtering**
 Merekomen­dasikan buku berdasarkan kemiripan konten.
 
@@ -174,17 +176,18 @@ Untuk buku 'Death on the Nile':
 
 Model berhasil merekomendasikan buku lain karya Agatha Christie.
 
-**Kelebihan:** Tidak butuh data pengguna lain, bisa rekomendasikan item baru, transparan.
-**Kekurangan:** Terbatas fitur item, bisa overspecialization, butuh domain knowledge, cold-start untuk pengguna baru.
+- **Kelebihan:** Tidak butuh data pengguna lain, bisa rekomendasikan item baru, transparan.
+- **Kekurangan:** Terbatas fitur item, bisa overspecialization, butuh domain knowledge, cold-start untuk pengguna baru.
 
-2. Collaborative Filtering
+**2. Collaborative Filtering**
+
 Merekomen­dasikan buku berdasarkan kemiripan preferensi antar pengguna.
 
 **Proses Pembuatan Model:**
 
-1. Parameter: num_users (pengguna unik terenkode), num_books (buku unik terenkode), embedding_size = 50.
+**1. Parameter:** num_users (pengguna unik terenkode), num_books (buku unik terenkode), embedding_size = 50.
 
-2. Arsitektur Model (Neural Network - Keras):
+**2. Arsitektur Model (Neural Network - Keras):**
 
 - Input: user dan book (ID terenkode).
 
@@ -198,21 +201,112 @@ Merekomen­dasikan buku berdasarkan kemiripan preferensi antar pengguna.
 
 - Kompilasi: Optimizer Adam (lr 0.001), loss mean_squared_# Ringkasan arsitektur model (dari notebook)
   
+**Ringkasan Arsitektur Model Collaborative Filtering**
 
-**Rubrik/Kriteria Tambahan (Opsional)**: 
-- Menyajikan dua solusi rekomendasi dengan algoritma yang berbeda.
-- Menjelaskan kelebihan dan kekurangan dari solusi/pendekatan yang dipilih.
+```python
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, Flatten, Dot, Dense
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.regularizers import l2
+
+def build_collaborative_model(num_users, num_books, embedding_dim=50):
+    user_input = Input(shape=(1,), name='user_input')
+    book_input = Input(shape=(1,), name='book_input')
+
+    user_embedding = Embedding(
+        input_dim=num_users,
+        output_dim=embedding_dim,
+        name='user_embedding',
+        embeddings_regularizer=l2(1e-6)
+    )(user_input)
+    book_embedding = Embedding(
+        input_dim=num_books,
+        output_dim=embedding_dim,
+        name='book_embedding',
+        embeddings_regularizer=l2(1e-6)
+    )(book_input)
+
+    user_vec = Flatten()(user_embedding)
+    book_vec = Flatten()(book_embedding)
+
+    dot_product = Dot(axes=1)([user_vec, book_vec])
+
+    output = Dense(1, activation='linear')(dot_product)
+
+    model = Model(inputs=[user_input, book_input], outputs=output)
+    model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error')
+
+    return model
+
+# Ringkasan Arsitektur
+collaborative_model = build_collaborative_model(num_users, num_books)
+collaborative_model.summary()
+```
+
+**3. Pelatihan Model:** Dilatih pada x_train dan y_train selama 10 epoch, batch size 64, dengan data validasi.
+
+Fungsi Rekomendasi (get_collaborative_recommendations_ringkas):
+Menerima ID pengguna, memprediksi peringkat untuk buku yang belum berinteraksi, dan mengembalikan k (default 10) buku dengan prediksi peringkat tertinggi.
+
+**Hasil Rekomendasi (Top-N):**
+Untuk pengguna ID '276726':
+
+| No. | Judul Buku                                                                 | Predicted Rating |
+| --- | -------------------------------------------------------------------------- | ---------------- |
+| 1   | The Sneetches and Other Stories                                            | 9.764567         |
+| 2   | Lonesome Dove                                                              | 9.445168         |
+| 3   | Bury My Heart at Wounded Knee: An Indian History of the American West      | 9.327517         |
+| 4   | Mere Christianity: A revised and enlarged edition, with a new introduction | 9.287292         |
+| 5   | Dilbert: A Book of Postcards                                               | 9.263111         |
+| 6   | ANNE FRANK: DIARY OF A YOUNG GIRL                                          | 9.235662         |
+| 7   | My Sister's Keeper : A Novel (Picoult, Jodi)                               | 9.234827         |
+| 8   | The Biggest Pumpkin Ever                                                   | 9.209048         |
+| 9   | Love, Greg & Lauren                                                        | 9.191188         |
+| 10  | It Came From The Far Side                                                  | 9.079331         |
+
+Model merekomendasikan buku berdasarkan preferensi pengguna serupa.
+
+- Kelebihan: Tidak butuh fitur item, bisa menemukan item tak terduga (serendipity), efektif dengan banyak data interaksi.
+- Kekurangan: Cold-start problem (pengguna/item baru), data sparsity, popularity bias.
 
 ## Evaluation
-Pada bagian ini Anda perlu menyebutkan metrik evaluasi yang digunakan. Kemudian, jelaskan hasil proyek berdasarkan metrik evaluasi tersebut.
 
-Ingatlah, metrik evaluasi yang digunakan harus sesuai dengan konteks data, problem statement, dan solusi yang diinginkan.
+Metrik evaluasi berbeda untuk kedua pendekatan.
 
-**Rubrik/Kriteria Tambahan (Opsional)**: 
-- Menjelaskan formula metrik dan bagaimana metrik tersebut bekerja.
+**1. Content-Based Filtering**
 
-**---Ini adalah bagian akhir laporan---**
+Metrik Evaluasi: Precision (berdasarkan kesamaan penulis).
 
-_Catatan:_
-- _Anda dapat menambahkan gambar, kode, atau tabel ke dalam laporan jika diperlukan. Temukan caranya pada contoh dokumen markdown di situs editor [Dillinger](https://dillinger.io/), [Github Guides: Mastering markdown](https://guides.github.com/features/mastering-markdown/), atau sumber lain di internet. Semangat!_
-- Jika terdapat penjelasan yang harus menyertakan code snippet, tuliskan dengan sewajarnya. Tidak perlu menuliskan keseluruhan kode project, cukup bagian yang ingin dijelaskan saja.
+Cara Kerja Metrik:
+
+![image](https://github.com/user-attachments/assets/e46fca87-0452-4794-9196-cd79d9013953)
+
+**Hasil Proyek Berdasarkan Metrik:**
+
+Untuk 'Death on the Nile': **Precision (Author):** 1.00. (Semua 10 rekomendasi dari Agatha Christie).
+
+**2. Collaborative Filtering**
+Metrik Evaluasi: Root Mean Squared Error (RMSE).
+
+Cara Kerja Metrik (Formula):
+
+![image](https://github.com/user-attachments/assets/4c4eae4c-610e-4351-9d85-66ceeb011fae)
+
+**Dimana:**
+- `N` adalah jumlah total item dalam dataset evaluasi.
+- `y_i` adalah nilai peringkat aktual untuk item ke-i.
+- `ŷ_i` adalah nilai peringkat yang diprediksi oleh model untuk item ke-i.
+
+RMSE mengukur rata-rata besarnya kesalahan prediksi model. **Semakin rendah nilai RMSE, semakin baik kinerja model dalam memprediksi peringkat.**
+
+**Hasil Evaluasi**
+
+- **Dataset evaluasi:** `collab_final_df`  
+  (berisi semua interaksi pengguna-buku yang telah diberi peringkat dan di-encode)
+- **Skala peringkat:** 1–10 (peringkat 0 telah difilter sebelumnya)
+  
+**Hasil:**
+
+- **RMSE Model Collaborative Filtering: `1.0109`**
+
+Nilai RMSE sekitar **1.01** menunjukkan bahwa rata-rata kesalahan prediksi peringkat oleh model adalah sekitar **1.01 poin**. Ini merupakan hasil yang cukup baik dan menandakan bahwa model memiliki kemampuan prediksi yang **cukup akurat** terhadap data yang tersedia.
