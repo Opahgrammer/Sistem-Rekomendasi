@@ -2,7 +2,8 @@
 
 ## Project Overview
 
-![image](https://github.com/user-attachments/assets/f907bbbb-fffe-4324-942f-16cf1209502b)
+![head](https://github.com/user-attachments/assets/d4c8d9fd-1f29-49fa-8361-e501c161ab71)
+
 
 
 Di era digital saat ini, jumlah informasi dan pilihan yang tersedia bagi konsumen meningkat secara eksponensial. Dalam konteks buku,pembaca seringkali dihadapkan pada jutaan judul yang tersedia di berbagai platform, baik fisik maupun digital. Hal ini dapat menyulitkan pembaca untuk menemukan buku yang sesuai dengan minat dan preferensi mereka. Sistem rekomendasi hadir sebagai solusi untuk membantu pengguna menavigasi banyaknya pilihan tersebut dengan menyajikan item (dalam hal ini, buku) yang paling relevan.
@@ -99,7 +100,7 @@ Tidak ada data duplikat pada ketiga dataset awal.
 - Skala Data Rating: Terdapat 1,149,780 peringkat dari 105,283 pengguna untuk 340,556 buku (setelah diproses untuk collab_df).
 - Rentang Rating: Skala 0-10, dengan banyak peringkat 0 yang difilter untuk Collaborative Filtering.
 
-![image](https://github.com/user-attachments/assets/807dfeb0-ba6c-4a4b-90a1-69c51ef541b6)
+![eda](https://github.com/user-attachments/assets/14106f32-dfec-499f-bb8d-0de3e95d1e5a)
 
 Distribusi Penerbit dan Penulis Teratas: Berdasarkan dari Visualisasi menunjukkan penerbit seperti Harlequin dan penulis seperti Agatha Christie memiliki banyak entri.
 
@@ -331,7 +332,8 @@ Metrik Evaluasi: Precision (berdasarkan kesamaan penulis).
 
 Cara Kerja Metrik:
 
-![image](https://github.com/user-attachments/assets/e46fca87-0452-4794-9196-cd79d9013953)
+![precision](https://github.com/user-attachments/assets/22ae9515-4df6-4ba9-b31b-9f7ad4337337)
+
 
 **Hasil Proyek Berdasarkan Metrik:**
 
@@ -342,7 +344,7 @@ Metrik Evaluasi: Root Mean Squared Error (RMSE).
 
 Cara Kerja Metrik (Formula):
 
-![image](https://github.com/user-attachments/assets/4c4eae4c-610e-4351-9d85-66ceeb011fae)
+![rmse](https://github.com/user-attachments/assets/8b93d1b2-0d59-404a-9d48-a21120c9f667)
 
 **Dimana:**
 - `N` adalah jumlah total item dalam dataset evaluasi.
