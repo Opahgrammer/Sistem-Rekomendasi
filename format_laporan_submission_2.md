@@ -105,36 +105,90 @@ Distribusi Penerbit dan Penulis Teratas: Berdasarkan dari Visualisasi menunjukka
 
 ## Data Preparation
 Tahapan persiapan data dilakukan untuk memastikan data siap digunakan untuk pemodelan.
-
-**1. Pengubahan Nama Kolom:** Nama kolom diubah untuk konsistensi (misalnya, **Book-Rating** menjadi **Rating**).
-   - Alasan: Memudahkan penggabungan dan pemanggilan kolom.
      
-**2. Penanganan Nilai Hilang:**
+**1. Penanganan Nilai Hilang:**
+```python
+books.dropna(subset=['Title', 'ISBN'], inplace=True)
+rating.dropna(inplace=True)
+
+books['Author'] = books['Author'].fillna('Unknown')
+books['Publisher'] = books['Publisher'].fillna('Unknown')
+```
 - Entri tanpa Title atau ISBN di books dihapus. Alasan: ISBN dan Title krusial.
 - Baris dengan nilai hilang di ratings dihapus (praktik baik).
 - Author dan Publisher yang hilang di books diisi 'Unknown'. **Alasan:** Mempertahankan data dan memungkinkan penggunaan fitur.
 
-**3. Penggabungan Data** (Merge): **ratings** dan **books** digabung berdasarkan **ISBN** menjadi **merged**. 
+**2. Penggabungan Data** (Merge): **ratings** dan **books** digabung berdasarkan **ISBN** menjadi **merged**. 
+```python
+merged = pd.merge(rating, books[['ISBN', 'Title', 'Author', 'Publisher','Year']], on='ISBN', how='left')
+```
 - Alasan: Membuat dataset tunggal dengan informasi peringkat dan detail buku.
      
-**4. Pembuatan Fitur Gabungan untuk Content-Based:** Kolom **features** (gabungan **Title**, **Author**, **Publisher**, **Year**) dibuat di **merged**.
+**3. Pembuatan Fitur Gabungan untuk Content-Based:** Kolom **features** (gabungan **Title**, **Author**, **Publisher**, **Year**) dibuat di **merged**.
+```python
+merged['features'] = (
+    merged['Title'].fillna('') + ' ' +
+    merged['Author'].fillna('') + ' ' +
+    merged['Publisher'].fillna('') + ' ' +
+    merged['Year'].fillna('').astype(str)
+)
+```
 - Alasan: Membuat representasi teks tunggal untuk TF-IDF.
      
-**5. Filtering Data Peringkat untuk Collaborative:** merged difilter untuk Rating > 0 menjadi filtered_rating.
+**4. Filtering Data Peringkat untuk Collaborative:** merged difilter untuk Rating > 0 menjadi filtered_rating.
+```python
+filtered_rating = merged[merged['Rating'] > 0]
+```
 - Alasan: Fokus pada preferensi eksplisit.
-     
-**6. Pemisahan Dataset:**
+
+**5. Pemisahan Dataset:**
+```python
+content_df = merged[['ISBN', 'Title', 'features']].drop_duplicates().reset_index(drop=True)
+collab_df = filtered_rating[['User_id', 'ISBN', 'Rating']]
+```
 - **content_df** (**ISBN**, **Title**, features unik) untuk Content-Based. Alasan: Data konten bersih.
 - collab_df (User_id, ISBN, Rating dari filtered_rating) untuk Collaborative. Alasan: Data interaksi bersih.
-  
-**7. Encoding Fitur untuk Collaborative:**
 
+ **6. Vektorisasi Teks (TF-IDF) (Untuk *Content-Based*):**
+    ```python
+    
+    tfidf = TfidfVectorizer(stop_words='english', max_features=10000)
+    tfidf_matrix = tfidf.fit_transform(content_df['features'])
+    
+- **Proses**: Mengaplikasikan `TfidfVectorizer` pada kolom `features` yang telah dibuat.
+- **Hasil**: Dihasilkan `tfidf_matrix`, sebuah matriks numerik yang merepresentasikan setiap buku sebagai vektor.
+- **Alasan**: Model *machine learning* tidak bisa memproses teks mentah. **TF-IDF mengubah teks menjadi vektor numerik** yang merepresentasikan pentingnya setiap kata dalam konteks buku dan keseluruhan dataset. Vektor ini memungkinkan model **mengukur kemiripan antar buku** secara matematis.
+        
+**7. Encoding Fitur untuk Collaborative:**
+```python
+content_df['ISBN'] = content_df['ISBN'].astype(str)
+
+valid_isbns = set(content_df['ISBN'].unique())
+collab_df = collab_df[collab_df['ISBN'].isin(valid_isbns)]
+collab_df['ISBN'] = collab_df['ISBN'].astype(str)
+
+
+user_encoder = LabelEncoder()
+isbn_encoder = LabelEncoder()
+
+collab_df['user'] = user_encoder.fit_transform(collab_df['User_id'])
+collab_df['book'] = isbn_encoder.fit_transform(collab_df['ISBN'])
+
+user_id_to_encoded = dict(zip(collab_df['User_id'], collab_df['user']))
+isbn_to_encoded = dict(zip(collab_df['ISBN'], collab_df['book']))
+encoded_to_user_id = {v: k for k, v in user_id_to_encoded.items()}
+encoded_to_isbn = {v: k for k, v in isbn_to_encoded.items()}
+
+collab_final_df = collab_df[['user', 'book', 'Rating']]
+```
 - **ISBN** dipastikan string; ISBN di **collab_df** divalidasi terhadap **content_df**. Alasan: Untuk memastikan konsistensi dan menghindari **ISBN** yang tidak memiliki pasangan data buku.
 - **LabelEncoder** mengubah **User_id** menjadi **user** dan **ISBN** menjadi **book**. Alasan: Input numerik untuk embedding.
 - Dibuat mapping ID asli ke terenkode dan sebaliknya. **Alasan:** Memudahkan inferensi.
 - **collab_final_df** (**user**, **book**, **Rating**) dibuat.
 
 **8. Pembagian Data Latih/Validasi:** collab_final_df dibagi 80% latih, 20% validasi. Alasan: Evaluasi generalisasi model.
+- Jumlah data Training : `346936`
+- Jumlah data Validasi : `86735`
 
 **Hasil Data Setelah Persiapan:**
 
@@ -149,11 +203,9 @@ Merekomen­dasikan buku berdasarkan kemiripan konten.
 
 **Proses Pembuatan Model:**
 
-1. TF-IDF Vectorization: Fitur features (judul, penulis, penerbit, tahun) dari content_df diubah menjadi matriks numerik (maks 10.000 fitur, stop words Inggris).
+1. Nearest Neighbors Model: Menggunakan NearestNeighbors (n_neighbors=11, metric='cosine', algorithm='brute') untuk mencari 10 buku termirip berdasarkan matriks TF-IDF.
 
-2. Nearest Neighbors Model: Menggunakan NearestNeighbors (n_neighbors=11, metric='cosine', algorithm='brute') untuk mencari 10 buku termirip berdasarkan matriks TF-IDF.
-
-3. Pemetaan Judul ke Indeks: Dibuat pandas.Series untuk memetakan judul ke indeks.
+2. Pemetaan Judul ke Indeks: Dibuat pandas.Series untuk memetakan judul ke indeks.
 
 Fungsi Rekomendasi (recommend_books_nn):
 Menerima judul buku, mencari top_n (default 10) buku termirip menggunakan model NearestNeighbors, lalu mengambil detail lengkap buku rekomendasi dari merged.
@@ -307,6 +359,6 @@ RMSE mengukur rata-rata besarnya kesalahan prediksi model. **Semakin rendah nila
   
 **Hasil:**
 
-- **RMSE Model Collaborative Filtering: `1.0109`**
+- **RMSE Model Collaborative Filtering: `1.0130`**
 
 Nilai RMSE sekitar **1.01** menunjukkan bahwa rata-rata kesalahan prediksi peringkat oleh model adalah sekitar **1.01 poin**. Ini merupakan hasil yang cukup baik dan menandakan bahwa model memiliki kemampuan prediksi yang **cukup akurat** terhadap data yang tersedia.
